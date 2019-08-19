@@ -6,6 +6,7 @@
 # @author hvi team
 # **
 #
+
 # Fast Branching example compiles and runs HVI sequences in two (or more) PXI modules. the first sequence has a wait for event statement that waits
 # for a PXI2 signal to happen. Both sequences are then resynchronized with a junction statement and queue a waveform depending on a register value.
 # Here the register WfNum is used to select the waveform to be queued. Another register, named cycleCnt in this example, is used as a counter

@@ -202,12 +202,12 @@ def _mimoresync_hvi_configurator(Test_obj):
         engine_index += 1
 
     # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
-    start_trigger = Test_obj.hvi.engines[0].triggers.add(wait_trigger, 'StartTrigger')
+    start_trigger = Test_obj.hvi.engines[Test_obj.master_module_index].triggers.add(wait_trigger, 'StartTrigger')
     start_trigger.configuration.direction = pyhvi.Direction.INPUT
     start_trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
 
     # Add start event
-    start_event = Test_obj.hvi.engines[0].events.add(wait_trigger, 'StartEvent')
+    start_event = Test_obj.hvi.engines[Test_obj.master_module_index].events.add(wait_trigger, 'StartEvent')
 
     for index in range(0, Test_obj.hvi.engines.count):
         # Get engine in the KtHvi instance
@@ -226,9 +226,9 @@ def _mimoresync_hvi_configurator(Test_obj):
     # Start KtHvi sequences creation
 
     # Add wait statement to first engine sequence (using sequence.programming interface)
-    engine_aou1_sequence = Test_obj.hvi.engines[0].main_sequence
+    engine_aou1_sequence = Test_obj.hvi.engines[Test_obj.master_module_index].main_sequence
     wait_event = engine_aou1_sequence.programming.add_wait_event('wait external_trigger', 10)
-    wait_event.event = Test_obj.hvi.engines[0].events['StartEvent']
+    wait_event.event = Test_obj.hvi.engines[Test_obj.master_module_index].events['StartEvent']
     wait_event.set_mode(pyhvi.EventDetectionMode.HIGH,
                         pyhvi.SyncMode.IMMEDIATE)  # Configure event detection and synchronization modes
 
@@ -275,4 +275,147 @@ def _mimoresync_hvi_configurator(Test_obj):
     Test_obj.hvi.platform.sync_resources = [pyhvi.TriggerResourceId.PXI_TRIGGER5, pyhvi.TriggerResourceId.PXI_TRIGGER6,
                                    pyhvi.TriggerResourceId.PXI_TRIGGER7]
 
-    print("Configured HVI for helloworldmimo test")
+    print("Configured HVI for mimo resync test")
+
+def _fast_branching_hvi_configurator(Test_obj):
+
+    moduleHviList = []
+    for module in Test_obj.module_instances:
+        if not module[0].hvi:
+            print("Module in chassis {} and slot {} does not support HVI2.0... exiting".format(module.getChassis(), module.getSlot()))
+            sys.exit()
+        moduleHviList.append(module[0].hvi)
+
+    ######################################
+    ## Configure resources in HVI instance
+    ######################################
+
+    # Add engines to the engineList
+    engineList = []
+    for module in moduleHviList:
+        engineList.append(module.engines.master_engine)
+
+    # Create HVI instance
+    moduleResourceName = "KtHvi"
+    Test_obj.hvi = pyhvi.KtHvi(moduleResourceName)
+
+    # Assign triggers to HVI object to be used for HVI-managed synch, data sharing, etc.
+    triggerResources = [pyhvi.TriggerResourceId.PXI_TRIGGER0, pyhvi.TriggerResourceId.PXI_TRIGGER1,
+                        pyhvi.TriggerResourceId.PXI_TRIGGER7]
+    Test_obj.hvi.platform.sync_resources = triggerResources
+
+    # Assign clock frequences that are outside the set of the clock frequencies of each hvi engine
+    nonHVIclocks = [10e6]
+    Test_obj.hvi.synchronization.non_hvi_core_clocks = nonHVIclocks
+
+    if engineList.__len__() > 1:
+        Test_obj.hvi.platform.chassis.add_auto_detect()
+
+    # TODO: To get this to work for multi-chassis, need to add in code
+
+    # Get engine IDs
+    engine_count = 0
+    for engineID in engineList:
+        Test_obj.hvi.engines.add(engineID, "SdEngine{}".format(engine_count))
+        engine_count += 1
+
+    ######################################
+    ## Start HVI sequence creation
+    ######################################
+
+    print("Press enter to begin creation of the HVI sequence")
+    input()
+
+    # Create register cycleCnt in module0, the module waiting for external trigger events
+    seq0 = Test_obj.hvi.engines[Test_obj.master_module_index].main_sequence
+    cycleCnt = seq0.registers.add("cycleCnt", pyhvi.RegisterSize.SHORT)
+
+    # Create a register WfNum in each PXI module. WfNum will be used to queue waveforms
+    for index in range(0, Test_obj.hvi.engines.count):
+        engine = Test_obj.hvi.engines[index]
+        seq = engine.main_sequence
+        seq.registers.add("WfNum", pyhvi.RegisterSize.SHORT)
+
+    # Create list of module resources to use in HVI sequence
+    waitTrigger = moduleHviList[Test_obj.master_module_index].triggers.pxi_2
+    Test_obj.hvi.engines[Test_obj.master_module_index].events.add(waitTrigger, "extEvent")
+
+    # Add wait statement to first engine sequence (using sequence.programming interface)
+    waitEvent = seq0.programming.add_wait_event("wait_external_trigger", 10)
+    waitEvent.event = Test_obj.hvi.engines[Test_obj.master_module_index].events["extEvent"]
+    waitEvent.set_mode(pyhvi.EventDetectionMode.FALLING_EDGE, pyhvi.SyncMode.IMMEDIATE)
+
+    # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
+    trigger = Test_obj.hvi.engines[Test_obj.master_module_index].triggers.add(waitTrigger, "extTrigger")
+    trigger.configuration.direction = pyhvi.Direction.INPUT
+    trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_HIGH
+
+    # Add global synchronized junction to HVI instance using hvi.programming interface
+    junctionName = "GlobalJunction"
+    junctionTime_ns = 10
+    Test_obj.hvi.programming.add_junction(junctionName, junctionTime_ns)
+
+    # Parameters for AWG queue WFM with register
+    startDelay = 0
+    nCycles = 1
+    prescaler = 0
+    nAWG = 0
+
+    # Add actions to HVI engines
+    for index in range(0, Test_obj.hvi.engines.count):
+        moduleActions = Test_obj.module_instances[index][0].hvi.actions
+        engine = Test_obj.hvi.engines[index]
+        engine.actions.add(moduleActions.awg1_start, "awg_start1")
+        engine.actions.add(moduleActions.awg2_start, "awg_start2")
+
+        engine.actions.add(moduleActions.awg1_trigger, "awg_trigger1")
+        engine.actions.add(moduleActions.awg2_trigger, "awg_trigger2")
+
+    # Add AWG queue waveform and AWG trigger to each module's sequence
+    for index in range(0, Test_obj.hvi.engines.count):
+        engine = Test_obj.hvi.engines[index]
+
+        # Obtain main sequence from engine to add instructions
+        seq = engine.main_sequence
+
+        # Add AWG queue waveform instruction to the sequence
+        AwgQueueWfmInstrId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.ID
+        AwgQueueWfmId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.waveform.ID
+
+        instruction0 = seq.programming.add_instruction("awgQueueWaveform", 10, AwgQueueWfmInstrId)
+        instruction0.set_parameter(AwgQueueWfmId, seq.registers["WfNum"])
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.channel.ID, nAWG)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.triggerMode.ID,
+                                   keysightSD1.SD_TriggerModes.SWHVITRIG)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.startDelay.ID, startDelay)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.Cycles.ID, nCycles)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.prescaler.ID, prescaler)
+
+
+        awgTriggerList = [engine.actions["awg_trigger1"], engine.actions[
+            "awg_trigger2"]]
+        instruction2 = seq.programming.add_instruction("AWG trigger", 2e3,
+                                                       Test_obj.hvi.instructions.instructions_action_execute.id)
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_action_execute.action, awgTriggerList)
+
+    # Increment cycleCnt in module0
+    instructionRYinc = seq0.programming.add_instruction("add", 10, Test_obj.hvi.instructions.instructions_add.id)
+    instructionRYinc.set_parameter(Test_obj.hvi.instructions.instructions_add.left_operand, 1)
+    instructionRYinc.set_parameter(Test_obj.hvi.instructions.instructions_add.right_operand, cycleCnt)
+    instructionRYinc.set_parameter(Test_obj.hvi.instructions.instructions_add.result_register, cycleCnt)
+
+    # Global Jump
+    jumpName = "jumpStatement"
+    jumpTime = 10000
+    jumpDestination = "Start"
+    Test_obj.hvi.programming.add_jump(jumpName, jumpTime, jumpDestination)
+
+    # Add global synchronized end to close HVI execution (close all sequences - using hvi-programming interface)
+    Test_obj.hvi.programming.add_end("EndOfSequence", 100)
+
+    Test_obj.seq_master = Test_obj.hvi.engines[Test_obj.master_module_index].main_sequence
+
+    print("Configured HVI for fast branching test.")
+
+
+

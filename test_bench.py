@@ -122,7 +122,7 @@ configure_hardware(hello_world_mimo_test)
 configure_hvi(hello_world_mimo_test)
 
 # run
-test_helloworldmimo.run_hvi()
+hello_world_mimo_test.run_hvi()
 
 # release the HVI
 time.sleep(1)
@@ -151,7 +151,7 @@ time.sleep(1)
 #    +------------+           |           |
 #    |WaitForEvent|           |           |
 #    +------------+           |           |
-#          |  10              |  10       |
+#          |  100             |  100      |
 #    +----------+        +----------+     |
 #    | Junction |        | Junction |     |
 #    +----------+        +----------+     |
@@ -186,16 +186,120 @@ if ctrl == 'q':
 mimo_resync_test = test_mimoresync(module_dict)
 
 # run the hardware configurator
-configure_hardware(hello_world_mimo_test)
+configure_hardware(mimo_resync_test)
 
 # run the HVI configurator
-configure_hvi(hello_world_mimo_test)
+configure_hvi(mimo_resync_test)
 
 # run
-test_helloworldmimo.run_hvi()
+mimo_resync_test.run_hvi()
 
 # release the HVI
 time.sleep(1)
 hello_world_mimo_test.release_hvi()
 time.sleep(1)
 
+
+
+"""
+TEST 4: NOT TO BE IMPLEMENTED
+Functionality tested by Test 4 is encompassed by other tests
+"""
+
+
+
+# Fast Branching test compiles and runs HVI sequences in two (or more) PXI modules. the first sequence has a wait for event statement that waits
+# for a PXI2 signal to happen. Both sequences are then resynchronized with a junction statement and queue a waveform depending on a register value.
+# Here the register WfNum is used to select the waveform to be queued. Another register, named cycleCnt in this example, is used as a counter
+# to record the number of received external trigger events.
+
+# This test first opens two SD1 cards (real hardware or simulation mode), creates two HVI modules from the cards, adds a chassis (real hardware or
+# simulated), gets the SD1 hvi engines and adds it to the HVI instrument, then adds and configures the trigger used by each sequence, and finally adds
+# the instructions in both sequences, compiles, and runs.
+
+
+#     [moduleList[0]]    [moduleList[1]]
+#         Engine             Engine
+#         Seq 0              Seq 1
+#       +-------+          +-------+
+#       | Start |          | Start | / ______
+#       +-------+          +-------+ \       |
+#           | 10               |             |
+#     +------------+           |             |
+#     |WaitForEvent|           |             |
+#     +------------+           |             |
+#           | 10               | 10          |
+#      +----------+      +----------+        |
+#      | SyncJunc |      | SyncJunc |        |
+#      +----------+      +----------+        |
+#           | 10               | 10          |
+#    +-------------+    +-------------+      |
+#    | AWGqueueWFM |    | AWGqueueWFM |      |
+#    | with WfNum  |    |  with WfNum |      |
+#    +-------------+    +-------------+      |
+#           | 2000             | 2000        |
+#     +-----------+      +-----------+       |
+#     |AWG Trigger|      |AWG Trigger|       |
+#     +-----------+      +-----------+       |
+#           | 100              |             |
+#     +----------+             |             |
+#     |cycleCnt++|             | 110         |
+#     +----------+             |             |
+#           | 10               |             |
+#     +----------+       +----------+        |
+#     |   Jump   |       |   Jump   |  ------+
+#     +----------+       +----------+
+#           | 10               | 10
+#      +-------+          +-------+
+#      |  End  |          |  End  |
+#      +-------+          +-------+
+
+print("Beginning test 5 of 5: a fast branching test.")
+print("Connect the channel 1 output of any/all module(s) to a digitizer or scope to observe synchronized waveforms.")
+print("Press any key to begin the test, or 'q' to quit.")
+
+ctrl = input()
+if ctrl == 'q':
+    print("Exiting...")
+    time.sleep(2)
+    sys.exit
+
+# create new test object
+fast_branching_test = test_fastbranching(module_dict)
+
+# run the hardware configurator
+configure_hardware(fast_branching_test)
+
+# run the HVI configurator
+configure_hvi(fast_branching_test)
+
+# run
+fast_branching_test.run_hvi()
+
+# set up trigger module... replace the inputs with chassis, slot of your trigger module
+fast_branching_test.setup_ext_trig_module(1, 1)
+
+# configure the test register
+fast_branching_test.seq_master.registers["cycleCnt"].write(0)
+
+# continuously loop through the test waveforms until user presses 'q'
+fast_branching_test.loop()
+
+# release hw
+fast_branching_test.release_hvi()
+
+# close modules
+fast_branching_test.close_modules()
+
+# release the HVI
+time.sleep(1)
+fast_branching_test.release_hvi()
+time.sleep(1)
+
+"""
+DONE!
+"""
+
+print("Test bench ran all tests. Press any key to quit")
+print()
+input()
