@@ -5,15 +5,14 @@ import pyhvi
 
 # This is a switch that will route to the correct function to configure a given Test object's HVI sequence
 def configure_hvi(Test_obj, filestr=""):
-    if Test_obj.test_key == "HVI external trigger":
-        _HVIexternaltrigger_hvi_config(Test_obj, filestr)
-    elif Test_obj.test_key == "helloworld":
+    if Test_obj.test_key == "helloworld":
         _helloworld_hvi_configurator(Test_obj)
+    elif Test_obj.test_key == "helloworldmimo":
+        _helloworldmimo_hvi_configurator(Test_obj)
+    elif Test_obj.test_key== "mimoresync":
+        _mimoresync_hvi_configurator(Test_obj)
     else:
         print("[ERROR] hvi_configurator.configure_HVI: Test object's test_key variable did not match a valid key")
-
-def _HVIexternaltrigger_hvi_config(Test_obj, filestr):
-    Test_obj.set_hvi(filestr)
 
 def _helloworld_hvi_configurator(Test_obj):
     # Create SD_AOUHvi object from SD module
@@ -36,13 +35,89 @@ def _helloworld_hvi_configurator(Test_obj):
         # Create KtHvi instance
         module_resource_name = 'KtHvi'
         hvi = pyhvi.KtHvi(module_resource_name)
+        print("HVI instance: ...".format(hvi))
 
         # Add SD HVI engine to KtHvi instance
         engine = hvi.engines.add(sd_engine_aou, 'SdEngine1')
+        print("hvi engine: {}...".format(engine))
 
         # Configure the trigger used by the sequence
-        engine.triggers.add(sd_hvi.triggers.pxi_5, 'sequenceTrigger')
-        trigger = engine.triggers['sequenceTrigger']
+        sequence_trigger = engine.triggers.add(sd_hvi.triggers.front_panel_1, 'SequenceTrigger')
+        sequence_trigger.configuration.direction = pyhvi.Direction.OUTPUT
+        sequence_trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+        sequence_trigger.configuration.delay = 0
+        sequence_trigger.configuration.trigger_mode = pyhvi.TriggerMode.LEVEL
+        sequence_trigger.configuration.pulse_length = 250
+
+        # *******************************
+        # Start KtHvi sequences creation
+
+        sequence = engine.main_sequence  # Obtain main squence from the created HVI instrument
+
+        instruction1 = sequence.programming.add_instruction('TriggerOn', 100,
+                                                            hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.trigger,
+                                   sequence_trigger)  # Specify which trigger is going to be used
+        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.sync_mode,
+                                   pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
+        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.value,
+                                   pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applied
+
+        instruction2 = sequence.programming.add_instruction('TriggerOff', 1000,
+                                                            hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.trigger,
+                                   sequence_trigger)  # Specify which trigger is going to be used
+        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.sync_mode,
+                                   pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
+        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.value,
+                                   pyhvi.TriggerValue.OFF)  # Specify trigger value that is going to be applied
+
+        hvi.programming.add_end('EndOfSequence', 10)  # Add the end statement at the end of the sequence
+
+        # Assign triggers to HVI object to be used for HVI-managed synchronization, data sharing, etc
+        trigger_resources = [pyhvi.TriggerResourceId.PXI_TRIGGER0, pyhvi.TriggerResourceId.PXI_TRIGGER1]
+        hvi.platform.sync_resources = trigger_resources
+
+        Test_obj.hvi_instances.append(hvi)
+
+        print("Configured HVI for helloworld test")
+
+def _helloworldmimo_hvi_configurator(Test_obj):
+
+    # Obtain SD_AOUHvi interface from modules
+    module_hvi_list = []
+    for module in Test_obj.module_instances:
+        if not module[0].hvi:
+            raise Exception(f'Module in chassis {module[2][0]} and slot {module[2][1]} does not support HVI2')
+        module_hvi_list.append(module[0].hvi)
+
+    # Create list of triggers to use in KtHvi sequence
+    trigger_list = []
+    for mod in module_hvi_list:
+        trigger_list.append(mod.triggers.front_panel_1)
+
+    # Create KtHvi instance
+    module_resource_name = 'KtHvi'
+    Test_obj.hvi = pyhvi.KtHvi(module_resource_name)
+
+    # *********************************
+    # Config resource in KtHvi instance
+
+    # Add chassis to KtHvi instance
+    Test_obj.hvi.platform.chassis.add_auto_detect()
+
+    # Get engine IDs from module's SD_AOUHvi interface and add each engine to KtHvi instance
+    engine_index = 0
+    for module_hvi in module_hvi_list:
+        sd_engine = module_hvi.engines.master_engine
+        Test_obj.hvi.engines.add(sd_engine, f'SdEngine{engine_index}')
+        engine_index += 1
+
+    # Configure the trigger used by the sequence
+    for index in range(0, Test_obj.hvi.engines.count):
+        engine = Test_obj.hvi.engines[index]
+
+        trigger = engine.triggers.add(trigger_list[index], 'SequenceTrigger')
         trigger.configuration.direction = pyhvi.Direction.OUTPUT
         trigger.configuration.drive_mode = pyhvi.DriveMode.PUSH_PULL
         trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
@@ -50,34 +125,154 @@ def _helloworld_hvi_configurator(Test_obj):
         trigger.configuration.trigger_mode = pyhvi.TriggerMode.LEVEL
         trigger.configuration.pulse_length = 250
 
-        # *******************************
-        # Start KtHvi sequences creation
-        # *******************************
+    # *******************************
+    # Start KtHvi sequences creation
 
-        sequence = engine.main_sequence  # Obtain main squence from the created HVI instrument
+    for index in range(0, Test_obj.hvi.engines.count):
+        # Get engine in the KtHvi instance
+        engine = Test_obj.hvi.engines[index]
 
+        # Obtain main sequence from engine to add instructions
+        sequence = engine.main_sequence
+
+        # Add instructions to specific sequence (using sequence.programming interface)
         instruction1 = sequence.programming.add_instruction('TriggerOn', 10,
-                                                            hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.trigger,
-                                   sd_hvi.triggers.pxi_5)  # Specify which trigger is going to be used
-        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.sync_mode,
+                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                   engine.triggers['SequenceTrigger'])  # Specify which trigger is going to be used
+        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.value,
-                                   pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applied
+        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+                                   pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applyed
 
-        instruction2 = sequence.programming.add_instruction('TriggerOff', 100,
-                                                            hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.trigger,
-                                   sd_hvi.triggers.pxi_5)  # Specify which trigger is going to be used
-        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction2 = sequence.programming.add_instruction('TriggerOff', 500,
+                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                   engine.triggers['SequenceTrigger'])  # Specify which trigger is going to be used
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.value,
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
                                    pyhvi.TriggerValue.OFF)  # Specify trigger value that is going to be applyed
 
-        hvi.programming.add_end('EndOfSequence', 10)  # Add the end statement at the end of the sequence
+    # Add global synchronized end to close KtHvi execution (close all sequences - using hvi-programming interface)
+    Test_obj.hvi.programming.add_end('EndOfSequence', 10)
 
-        # Assign triggers to HVI object to be used for HVI-managed synchronization, data sharing, etc
-        trigger_resources = [pyhvi.TriggerResourceId.PXI_TRIGGER5, pyhvi.TriggerResourceId.PXI_TRIGGER6]
-        hvi.platform.sync_resources = trigger_resources
+    # Assign triggers to KtHvi object to be used for HVI-managed synchronization, data sharing, etc
+    Test_obj.hvi.platform.sync_resources = [pyhvi.TriggerResourceId.PXI_TRIGGER0, pyhvi.TriggerResourceId.PXI_TRIGGER1]
 
-        Test_obj.hvi_instances.append(hvi)
+    print("Configured HVI for helloworldmimo test")
+
+
+def _mimoresync_hvi_configurator(Test_obj):
+
+    # Obtain SD_AOUHvi interface from modules
+    module_hvi_list = []
+    for module in Test_obj.module_instances:
+        if not module[0].hvi:
+            raise Exception(f'Module in chassis {module[2][0]} and slot {module[2][1]} does not support HVI2')
+        module_hvi_list.append(module[0].hvi)
+
+    # Create lists of triggers to use in KtHvi sequence
+    wait_trigger = module_hvi_list[Test_obj.master_module_index].triggers.pxi_2
+    trigger_list = []
+    engine_list = []
+    for module in module_hvi_list:
+        trigger_list.append(module.triggers.front_panel_1)
+        engine_list.append(module.engines.master_engine)
+
+    # Create KtHvi instance
+    module_resource_name = 'KtHvi'
+    Test_obj.hvi = pyhvi.KtHvi(module_resource_name)
+
+    # *********************************
+    # Config resource in KtHvi instance
+
+    Test_obj.hvi.platform.chassis.add_auto_detect()
+
+    #TODO: need to implement this portion
+    # interconnects = hvi.platform.interconnects
+    # interconnects.add_squidboards(1, 9, 2, 9)
+    # interconnects.add_squidboards(2, 14, 3, 9)
+    # interconnects.add_squidboards(3, 14, 4, 9)
+
+    # Add each engine to KtHvi instance
+    engine_index = 0
+    for engine in engine_list:
+        Test_obj.hvi.engines.add(engine, f'SdEngine{engine_index}')
+        engine_index += 1
+
+    # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
+    start_trigger = Test_obj.hvi.engines[0].triggers.add(wait_trigger, 'StartTrigger')
+    start_trigger.configuration.direction = pyhvi.Direction.INPUT
+    start_trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+
+    # Add start event
+    start_event = Test_obj.hvi.engines[0].events.add(wait_trigger, 'StartEvent')
+
+    for index in range(0, Test_obj.hvi.engines.count):
+        # Get engine in the KtHvi instance
+        engine = Test_obj.hvi.engines[index]
+
+        # Add trigger to engine
+        trigger = engine.triggers.add(trigger_list[index], 'PulseOut')
+        trigger.configuration.direction = pyhvi.Direction.OUTPUT
+        trigger.configuration.drive_mode = pyhvi.DriveMode.PUSH_PULL
+        trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+        trigger.configuration.delay = 0
+        trigger.configuration.trigger_mode = pyhvi.TriggerMode.LEVEL
+        trigger.configuration.pulse_length = 250
+
+    # *******************************
+    # Start KtHvi sequences creation
+
+    # Add wait statement to first engine sequence (using sequence.programming interface)
+    engine_aou1_sequence = Test_obj.hvi.engines[0].main_sequence
+    wait_event = engine_aou1_sequence.programming.add_wait_event('wait external_trigger', 10)
+    wait_event.event = Test_obj.hvi.engines[0].events['StartEvent']
+    wait_event.set_mode(pyhvi.EventDetectionMode.HIGH,
+                        pyhvi.SyncMode.IMMEDIATE)  # Configure event detection and synchronization modes
+
+    # Add global synchronized junction to HVI instance (to all sequences!!! - using hvi.programming interface)
+    global_junction = 'GlobalJunction'
+    junction_time_ns = 100
+    Test_obj.hvi.programming.add_junction(global_junction, junction_time_ns)
+
+    for index in range(0, Test_obj.hvi.engines.count):
+        # Get engine in the KtHvi instance
+        engine = Test_obj.hvi.engines[index]
+
+        # Obtain main sequence from engine to add instructions
+        sequence = engine.main_sequence
+
+        # Add instructions to specific sequence (using sequence.programming interface)
+        instruction1 = sequence.programming.add_instruction('TriggerOn', 10,
+                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                   engine.triggers['PulseOut'])  # Specify which trigger is going to be used
+        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
+                                   pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
+        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+                                   pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applyed
+
+        instruction2 = sequence.programming.add_instruction('TriggerOff', 100,
+                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                   engine.triggers['PulseOut'])  # Specify which trigger is going to be used
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
+                                   pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
+        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+                                   pyhvi.TriggerValue.OFF)  # Specify trigger value that is going to be applyed
+
+    jump_name = 'JumpStatement'
+    jump_time = 1000
+    jump_destination = "Start"
+    Test_obj.hvi.programming.add_jump(jump_name, jump_time, jump_destination)
+
+    # Add global synchronized end to close KtHvi execution (close all sequences - using hvi-programming interface)
+    Test_obj.hvi.programming.add_end('EndOfSequence', 10)
+
+    # Assign triggers to KtHvi object to be used for HVI-managed synchronization, data sharing, etc
+    Test_obj.hvi.platform.sync_resources = [pyhvi.TriggerResourceId.PXI_TRIGGER5, pyhvi.TriggerResourceId.PXI_TRIGGER6,
+                                   pyhvi.TriggerResourceId.PXI_TRIGGER7]
+
+    print("Configured HVI for helloworldmimo test")

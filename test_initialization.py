@@ -43,6 +43,120 @@ class Test(ABC):
     #     pass
 
 
+
+
+
+
+class test_helloworld(Test):
+    # Dummy attributes
+    # Add if needed
+
+    # Attributes accessible through object initialization
+    test_key = "helloworld"
+
+    # Attributes accessible through class methods
+    number_modules = None
+    hvi_instances = []
+
+
+    def __init__(self, module_dict):
+        super().__init__(module_dict)
+        self.number_modules = len(module_dict)
+
+    def run_each_hvi(self):
+        for hvi in range(0,len(self.hvi_instances)):
+            hvi.compile()  # Compile the instrument sequence(s)
+            hvi.load_to_hw()  # Load the instrument sequence(s) to HW
+            time = timedelta(seconds=1)
+            hvi.run(time)  # Execute the instrument sequence(s)
+
+    def release_hvi(self):
+        for hvi in range(0, len(self.hvi_instances)):
+            hvi.release_hw()
+
+class test_helloworldmimo(Test):
+    # Dummy attributes
+    # Add if needed
+
+    # Attributes accessible through object initialization
+    test_key = "helloworldmimo"
+
+    # Attributes accessible through class methods
+    number_modules = None
+    hvi = None #This gets set in the hvi_configurator
+
+    def __init__(self, module_dict):
+        super().__init__(module_dict)
+        self.number_modules = len(module_dict)
+
+    def run_hvi(self):
+        # Compile the instrument sequence(s)
+        self.hvi.compile()
+
+        # Load the KtHvi instance to HW: load sequence(s), config triggers/events/..., lock resources, etc
+        self.hvi.load_to_hw()
+
+         # Execute KtHvi instance
+        time = timedelta(seconds=1)
+        self.hvi.run(time)
+
+    def release_hvi(self):
+        self.hvi.release_hw()
+
+
+class test_mimoresync(Test):
+    # Dummy attributes
+    # Add if needed
+
+    # Attributes accessible through object initialization
+    test_key = "mimoresync"
+
+    # Attributes accessible through class methods
+    number_modules = None # set in init()
+    chassis_list = [] # set in init()
+    hvi = None #This gets set in the hvi_configurator
+    master_module_index = None #set in init()
+
+    def __init__(self, module_dict, master_module_location): #master_module_location is a dict {chassis: x, slot: y}
+        super().__init__(module_dict)
+        self.number_modules = len(module_dict)
+        for i in range(0, self.number_modules):
+            self.chassis_list.append(self.module_instances[i][2][1])
+            if master_module_location["chassis"] == self.module_instances[i][2][1] and master_module_location["slot"] == self.module_instances[i][2][1]:
+                self.master_module_index = i
+
+    def run_hvi(self):
+        # Compile the instrument sequence(s)
+        self.hvi.compile()
+
+        # Load the KtHvi instance to HW: load sequence(s), config triggers/events/..., lock resources, etc
+        self.hvi.load_to_hw()
+
+         # Execute KtHvi instance
+        time = timedelta(seconds=1)
+        self.hvi.run(time)
+
+    def release_hvi(self):
+        self.hvi.release_hw()
+
+
+def create_module_inventory(module_array):
+    # Takes array of module locations in format [chassis, slot], and returns a dictionary of modules with specific module type & location information
+
+    dictionary = {}
+
+    for mod in module_array:
+        temp_mod = keysightSD1.SD_AOU() #Doesn't matter if it's dig or awg, it will be able to retrieve module name
+        module_type = temp_mod.getProductNameBySlot(mod[0], mod[1])
+
+        print("Found {} in Chassis {}, Slot {}".format(module_type, mod[0], mod[1]))
+
+        name = "{}_chassis{}_slot{}".format(module_type, mod[0], mod[1])
+        dictionary.update({name: [mod[0], mod[1]]})
+        temp_mod.close()
+
+    return dictionary
+
 # class Test_HVIexternaltrigger(Test):
 #
 #     # Dummy attributes
@@ -99,48 +213,3 @@ class Test(ABC):
 #         self.hvi.compile()
 #         self.hvi.load()
 #         print("Loaded {}.HVI into HVI Trigger Sync Test".format(filestr))
-
-
-
-class test_helloworld(Test):
-    # Dummy attributes
-    # Add if needed
-
-    # Attributes accessible through object initialization
-    test_key = "helloworld"
-
-    # Attributes accessible through class methods
-    number_modules = None
-    hvi_instances = []
-
-
-    def __init__(self, module_dict):
-        super().__init__(module_dict)
-        self.number_modules = len(module_dict)
-
-    def run_all_hvi(self):
-        for hvi in range(0,len(self.hvi_instances)):
-            hvi.compile()  # Compile the instrument sequence(s)
-            hvi.load_to_hw()  # Load the instrument sequence(s) to HW
-            time = timedelta(seconds=1)
-            hvi.run(time)  # Execute the instrument sequence(s)
-
-
-
-
-def create_module_inventory(module_array):
-    # Takes array of module locations in format [chassis, slot], and returns a dictionary of modules with specific module type & location information
-
-    dictionary = {}
-
-    for mod in module_array:
-        temp_mod = keysightSD1.SD_AOU() #Doesn't matter if it's dig or awg, it will be able to retrieve module name
-        module_type = temp_mod.getProductNameBySlot(mod[0], mod[1])
-
-        print("Found {} in Chassis {}, Slot {}".format(module_type, mod[0], mod[1]))
-
-        name = "{}_chassis{}_slot{}".format(module_type, mod[0], mod[1])
-        dictionary.update({name: [mod[0], mod[1]]})
-        temp_mod.close()
-
-    return dictionary

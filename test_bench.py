@@ -20,7 +20,7 @@ module_array = [[1, 4], [1, 5]]
 module_dict = create_module_inventory(module_array)
 
 
-# HelloWorld example compiles and runs an HVI sequence consisting in a turning ON and OFF a trigger.
+# HelloWorld compiles and runs an HVI sequence consisting in a turning ON and OFF a trigger.
 # First opens an SD1 card (real hardware or simulation mode), creates an HVI module from the card,
 # gets the SD1 hvi engine and adds it to the HVI Instrument, adds and configures the trigger used by the sequence,
 # adds the instructions, compiles and runs. It tests each module as part of a different HVI instrument. For example, if a
@@ -47,52 +47,155 @@ module_dict = create_module_inventory(module_array)
 #      |  End  |
 #      +-------+
 
+print("Beginning test 1 of 5: a simple triggering test.")
+print("Connect the trigger output of any/all module(s) to a digitizer or scope to observe pulse.")
+print("Press any key to begin the test, or 'q' to quit.")
+ctrl = input()
+if ctrl == 'q':
+    print("Exiting...")
+    time.sleep(2)
+    sys.exit
 
 # set up test object
 hello_world_test = test_helloworld(module_dict)
+
+# run the hardware configurator
 configure_hardware(hello_world_test)
+
+# run the HVI configurator
 configure_hvi(hello_world_test)
 
+# run the HVIs
+hello_world_test.run_each_hvi()
 
-# set up hardware
+# release the HVIs
+time.sleep(1)
+hello_world_test.release_hvi()
+time.sleep(1)
 
-# set up HVI
+
+# HVI Hello World MIMO
+#
+# HelloWorldMimo example compiles and runs two HVI sequences in two SD1 modules with each sequence
+# turning ON and OFF a trigger.
+#
+# First opens the SD1 cards (real hardware or simulation mode), creates the HVI modules from the cards,
+# adds a chassis (real hardware or simulated), gets the SD1 hvi engines and adds it to the HVI Instrument,
+# adds and configures the trigger used by each sequence, adds the instructions in both sequences,
+# compiles and runs.
+#
+#       [module1]         [module2]
+#        Engine		      Engine
+#        Seq 0             Seq 1
+#      +-------+     	     +-------+
+#      | Start |	         | Start |
+#      +-------+     	     +-------+
+#          | 10	           	     | 10
+#    +----------+           +----------+
+#    |TriggerON |	        |TriggerON |
+#    +----------+	        +----------+
+#          |  500                |  500
+#    +----------+     	    +----------+
+#    |TriggerOFF|	        |TriggerOFF|
+#    +----------+	        +----------+
+#          |  10                 |  10
+#      +-------+	         +-------+
+#      |  End  |     	     |  End  |
+#      +-------+	         +-------+
+
+print("Beginning test 2 of 5: a syncrhonized triggering test.")
+print("Connect the trigger output of any/all module(s) to a digitizer or scope to observe synchronized pulses.")
+print("Press any key to begin the test, or 'q' to quit.")
+ctrl = input()
+if ctrl == 'q':
+    print("Exiting...")
+    time.sleep(2)
+    sys.exit
+
+# create new test object
+hello_world_mimo_test = test_helloworldmimo(module_dict)
+
+# run the hardware configurator
+configure_hardware(hello_world_mimo_test)
+
+# run the HVI configurator
+configure_hvi(hello_world_mimo_test)
 
 # run
+test_helloworldmimo.run_hvi()
+
+# release the HVI
+time.sleep(1)
+hello_world_mimo_test.release_hvi()
+time.sleep(1)
 
 
+# MimoResync compiles and runs two HVI sequences in two SD1 modules.
+#
+# The first sequence has a wait for event statement that waits for a PXI2 signal to happen.
+# Both sequences are then resynchronized with a junction statement and both execute a trigger ON
+# and a trigger OFF instruction.
+#
+# First opens two SD1 cards (real hardware or simulation mode), creates two HVI modules from the cards,
+# adds a chassis (real hardware or simulated), gets the SD1 hvi engines and adds it to the HVI Instrument,
+# adds and configures the trigger used by each sequence, adds the instructions in both sequences,
+# compiles and runs.
+#
+#   [moduleList[0]]     [moduleList[1]]
+#        Engine             Engine
+#        Seq 0              Seq 1
+#      +-------+           +-------+
+#      | Start |           | Start | /____
+#      +-------+           +-------+ \    |
+#          | 10               |           |
+#    +------------+           |           |
+#    |WaitForEvent|           |           |
+#    +------------+           |           |
+#          |  10              |  10       |
+#    +----------+        +----------+     |
+#    | Junction |        | Junction |     |
+#    +----------+        +----------+     |
+#          |  10              |  10       |
+#    +----------+        +----------+     |
+#    |TriggerON |        |TriggerON |     |
+#    +----------+        +----------+     |
+#          |  100             |  100      |
+#    +----------+        +----------+     |
+#    |TriggerOFF|        |TriggerOFF|     |
+#    +----------+        +----------+     |
+#          |  1000            |  1000     |
+#    +----------+        +----------+     |
+#    |   Jump   |        |   Jump   | ----+
+#    +----------+        +----------+
+#          |  10              |  10
+#      +-------+           +-------+
+#      |  End  |           |  End  |
+#      +-------+           +-------+
 
+print("Beginning test 3 of 5: a re-syncrhonized triggering test.")
+print("Connect the trigger output of any/all module(s) to a digitizer or scope to observe synchronized pulses.")
+print("Press any key to begin the test, or 'q' to quit.")
 
-# # Initialize a test object using the module inventory we just created
-# HVIexternaltrigger_test = Test_HVIexternaltrigger(module_dict, #dictionary of modules used in the test
-#                                           4, #master slot
-#                                           5, #slave slot
-#                                           1, #master channel
-#                                           1 #slave channel
-#                                                   )
-# # Select one of the waveforms that comes with the SD1 as the waveform that we'll be using in our test
-# HVIexternaltrigger_test.set_waveform("C:\\Users\\Public\\Documents\\Keysight\\SD1\\Examples\\Waveforms\\Sin_10MHz_50samples_192cycles.csv")
-#
-#
-# # Configure the hardware for this test\
-# configure_hardware(HVIexternaltrigger_test)
-# #configure_hardware(HVIexternaltrigger_test)
-#
-#
-#
-# # Load the HVI
-# configure_hvi(HVIexternaltrigger_test, "HVIexample_twomodules.HVI")
-#
-# # Start the HVI
-# HVIexternaltrigger_test.hvi.start(),
-#
-# # Send the triggers
-# PXI_line_nbr = 1
-# for i in range(0, 50):
-#     Test_HVItriggersync.send_PXI_trigger_pulse(PXI_line_nbr, 0)
-#     time.sleep(.1)
-#
-# # Make sure the HVI stops running
-# HVIexternaltrigger_test.hvi.stop()
+ctrl = input()
+if ctrl == 'q':
+    print("Exiting...")
+    time.sleep(2)
+    sys.exit
 
+# create new test object
+mimo_resync_test = test_mimoresync(module_dict)
+
+# run the hardware configurator
+configure_hardware(hello_world_mimo_test)
+
+# run the HVI configurator
+configure_hvi(hello_world_mimo_test)
+
+# run
+test_helloworldmimo.run_hvi()
+
+# release the HVI
+time.sleep(1)
+hello_world_mimo_test.release_hvi()
+time.sleep(1)
 
