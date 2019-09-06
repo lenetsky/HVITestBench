@@ -11,16 +11,18 @@ class Test(ABC):
 
     # Test class contains base properties and methods that will be present in all sub-classes
 
-    module_dict = {} #dictionary of modules that we will be using the test, with chassis and slot information
-
-    #===================== CORE OBJECT THAT TESTS ACT ON ====================#
-    module_instances = [] # FORMAT: [INSTANCE, MODULE NAME, [CHASSIS SLOT]]
-    #========================================================================#
+    # module_dict = {} #dictionary of modules that we will be using the test, with chassis and slot information
+    #
+    # #===================== CORE OBJECT THAT TESTS ACT ON ====================#
+    # module_instances = [] # FORMAT: [INSTANCE, MODULE NAME, [CHASSIS SLOT]]
+    # #========================================================================#
 
     # init method will fill _module_instances list with SD objects specified by locations in module_dict
     @abstractmethod
     def __init__(self, module_dict):
         super().__init__()
+        self.module_dict = {}
+        self.module_instances = []
         self.module_dict = module_dict
         for key, value in self.module_dict.items():
             if key[2] == '1':
@@ -64,15 +66,19 @@ class test_helloworld(Test):
         self.number_modules = len(module_dict)
 
     def run_each_hvi(self):
-        for hvi in range(0,len(self.hvi_instances)):
+        for hvi in self.hvi_instances:
             hvi.compile()  # Compile the instrument sequence(s)
             hvi.load_to_hw()  # Load the instrument sequence(s) to HW
             time = timedelta(seconds=1)
             hvi.run(time)  # Execute the instrument sequence(s)
 
     def release_hvi(self):
-        for hvi in range(0, len(self.hvi_instances)):
+        for hvi in self.hvi_instances:
             hvi.release_hw()
+
+    def close_modules(self):
+        for module in self.module_instances:
+            module[0].close()
 
 class test_helloworldmimo(Test):
     # Dummy attributes
@@ -103,6 +109,10 @@ class test_helloworldmimo(Test):
     def release_hvi(self):
         self.hvi.release_hw()
 
+    def close_modules(self):
+        for module in self.module_instances:
+            module[0].close()
+
 
 class test_mimoresync(Test):
     # Dummy attributes
@@ -122,7 +132,7 @@ class test_mimoresync(Test):
         self.number_modules = len(module_dict)
         for i in range(0, self.number_modules):
             self.chassis_list.append(self.module_instances[i][2][1])
-            if master_module_location["chassis"] == self.module_instances[i][2][1] and master_module_location["slot"] == self.module_instances[i][2][1]:
+            if master_module_location["chassis"] == self.module_instances[i][2][0] and master_module_location["slot"] == self.module_instances[i][2][1]:
                 self.master_module_index = i
 
     def run_hvi(self):
@@ -133,11 +143,23 @@ class test_mimoresync(Test):
         self.hvi.load_to_hw()
 
          # Execute KtHvi instance
-        time = timedelta(seconds=1)
+        time = timedelta(seconds=0)
         self.hvi.run(time)
+
+    # def send_triggers(self):
+    #     print("Press enter to trigger the sequence. 's' to stop")
+    #
+    #     user_input = input()
+    #
+    #     if user_input == "":
+    #         self.
 
     def release_hvi(self):
         self.hvi.release_hw()
+
+    def close_modules(self):
+        for module in self.module_instances:
+            module[0].close()
 
 
 class test_fastbranching(Test):
@@ -160,7 +182,7 @@ class test_fastbranching(Test):
         self.number_modules = len(module_dict)
         for i in range(0, self.number_modules):
             self.chassis_list.append(self.module_instances[i][2][1])
-            if master_module_location["chassis"] == self.module_instances[i][2][1] and master_module_location["slot"] == self.module_instances[i][2][1]:
+            if master_module_location["chassis"] == self.module_instances[i][2][0] and master_module_location["slot"] == self.module_instances[i][2][1]:
                 self.master_module_index = i
 
 
@@ -172,7 +194,7 @@ class test_fastbranching(Test):
         self.hvi.load_to_hw()
 
          # Execute KtHvi instance
-        time = timedelta(seconds=1)
+        time = timedelta(seconds=0)
         self.hvi.run(time)
 
     def release_hvi(self):

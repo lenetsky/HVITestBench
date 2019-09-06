@@ -11,7 +11,7 @@ def configure_hardware(Test_obj):
     elif Test_obj.test_key == "mimoresync":
         _mimo_resync_hw_config(Test_obj)
     elif Test_obj.test_key == "fastbranching":
-        _fast_branching_hw_config()
+        _fast_branching_hw_config(Test_obj)
     else:
         print("[ERROR] hardware_configurator.configure_hardware: Test object's test_key variable did not match a valid key")
 

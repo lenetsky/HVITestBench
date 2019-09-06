@@ -14,7 +14,7 @@ from hvi_configurator import *
 #   3. hvi_configurator (HVI configuration)
 
 # Create array of module locations [chassis, slot]. Doesn't matter what type of SD1 instrument (dig/awg)
-module_array = [[1, 4], [1, 5]]
+module_array = [[1, 8], [1, 9]]
 
 # Use the inventory function to get more info about modules (instrument type, name, etc.)
 module_dict = create_module_inventory(module_array)
@@ -47,7 +47,7 @@ module_dict = create_module_inventory(module_array)
 #      |  End  |
 #      +-------+
 
-print("Beginning test 1 of 5: a simple triggering test.")
+print("Beginning test 1 of 4: a simple triggering test.")
 print("Connect the trigger output of any/all module(s) to a digitizer or scope to observe pulse.")
 print("Press any key to begin the test, or 'q' to quit.")
 ctrl = input()
@@ -71,6 +71,7 @@ hello_world_test.run_each_hvi()
 # release the HVIs
 time.sleep(1)
 hello_world_test.release_hvi()
+hello_world_test.close_modules()
 time.sleep(1)
 
 
@@ -103,7 +104,7 @@ time.sleep(1)
 #      |  End  |     	     |  End  |
 #      +-------+	         +-------+
 
-print("Beginning test 2 of 5: a syncrhonized triggering test.")
+print("Beginning test 2 of 4: a syncrhonized triggering test.")
 print("Connect the trigger output of any/all module(s) to a digitizer or scope to observe synchronized pulses.")
 print("Press any key to begin the test, or 'q' to quit.")
 ctrl = input()
@@ -127,6 +128,7 @@ hello_world_mimo_test.run_hvi()
 # release the HVI
 time.sleep(1)
 hello_world_mimo_test.release_hvi()
+hello_world_mimo_test.close_modules()
 time.sleep(1)
 
 
@@ -172,7 +174,7 @@ time.sleep(1)
 #      |  End  |           |  End  |
 #      +-------+           +-------+
 
-print("Beginning test 3 of 5: a re-syncrhonized triggering test.")
+print("Beginning test 3 of 4: a re-syncrhonized triggering test.")
 print("Connect the trigger output of any/all module(s) to a digitizer or scope to observe synchronized pulses.")
 print("Press any key to begin the test, or 'q' to quit.")
 
@@ -183,7 +185,7 @@ if ctrl == 'q':
     sys.exit
 
 # create new test object
-mimo_resync_test = test_mimoresync(module_dict)
+mimo_resync_test = test_mimoresync(module_dict, {"chassis": 1, "slot": 9})
 
 # run the hardware configurator
 configure_hardware(mimo_resync_test)
@@ -193,18 +195,13 @@ configure_hvi(mimo_resync_test)
 
 # run
 mimo_resync_test.run_hvi()
-
+print("press enter to continue")
+input()
 # release the HVI
 time.sleep(1)
-hello_world_mimo_test.release_hvi()
+mimo_resync_test.release_hvi()
+mimo_resync_test.close_modules()
 time.sleep(1)
-
-
-
-"""
-TEST 4: NOT TO BE IMPLEMENTED
-Functionality tested by Test 4 is encompassed by other tests
-"""
 
 
 
@@ -254,7 +251,7 @@ Functionality tested by Test 4 is encompassed by other tests
 #      |  End  |          |  End  |
 #      +-------+          +-------+
 
-print("Beginning test 5 of 5: a fast branching test.")
+print("Beginning test 4 of 4: a fast branching test.")
 print("Connect the channel 1 output of any/all module(s) to a digitizer or scope to observe synchronized waveforms.")
 print("Press any key to begin the test, or 'q' to quit.")
 
@@ -265,7 +262,7 @@ if ctrl == 'q':
     sys.exit
 
 # create new test object
-fast_branching_test = test_fastbranching(module_dict)
+fast_branching_test = test_fastbranching(module_dict, {"chassis": 1, "slot": 9})
 
 # run the hardware configurator
 configure_hardware(fast_branching_test)
@@ -277,7 +274,7 @@ configure_hvi(fast_branching_test)
 fast_branching_test.run_hvi()
 
 # set up trigger module... replace the inputs with chassis, slot of your trigger module
-fast_branching_test.setup_ext_trig_module(1, 1)
+fast_branching_test.setup_ext_trig_module(1, 9)
 
 # configure the test register
 fast_branching_test.seq_master.registers["cycleCnt"].write(0)
@@ -294,6 +291,7 @@ fast_branching_test.close_modules()
 # release the HVI
 time.sleep(1)
 fast_branching_test.release_hvi()
+fast_branching_test.close_modules()
 time.sleep(1)
 
 """

@@ -11,6 +11,8 @@ def configure_hvi(Test_obj, filestr=""):
         _helloworldmimo_hvi_configurator(Test_obj)
     elif Test_obj.test_key== "mimoresync":
         _mimoresync_hvi_configurator(Test_obj)
+    elif Test_obj.test_key == "fastbranching":
+        _fast_branching_hvi_configurator(Test_obj)
     else:
         print("[ERROR] hvi_configurator.configure_HVI: Test object's test_key variable did not match a valid key")
 
@@ -44,7 +46,7 @@ def _helloworld_hvi_configurator(Test_obj):
         # Configure the trigger used by the sequence
         sequence_trigger = engine.triggers.add(sd_hvi.triggers.front_panel_1, 'SequenceTrigger')
         sequence_trigger.configuration.direction = pyhvi.Direction.OUTPUT
-        sequence_trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+        sequence_trigger.configuration.polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
         sequence_trigger.configuration.delay = 0
         sequence_trigger.configuration.trigger_mode = pyhvi.TriggerMode.LEVEL
         sequence_trigger.configuration.pulse_length = 250
@@ -55,21 +57,21 @@ def _helloworld_hvi_configurator(Test_obj):
         sequence = engine.main_sequence  # Obtain main squence from the created HVI instrument
 
         instruction1 = sequence.programming.add_instruction('TriggerOn', 100,
-                                                            hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.trigger,
+                                                            hvi.instructions.trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction1.set_parameter(hvi.instructions.trigger_write.trigger,
                                    sequence_trigger)  # Specify which trigger is going to be used
-        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction1.set_parameter(hvi.instructions.trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction1.set_parameter(hvi.instructions.instructions_trigger_write.value,
+        instruction1.set_parameter(hvi.instructions.trigger_write.value,
                                    pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applied
 
         instruction2 = sequence.programming.add_instruction('TriggerOff', 1000,
-                                                            hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.trigger,
+                                                            hvi.instructions.trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction2.set_parameter(hvi.instructions.trigger_write.trigger,
                                    sequence_trigger)  # Specify which trigger is going to be used
-        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction2.set_parameter(hvi.instructions.trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction2.set_parameter(hvi.instructions.instructions_trigger_write.value,
+        instruction2.set_parameter(hvi.instructions.trigger_write.value,
                                    pyhvi.TriggerValue.OFF)  # Specify trigger value that is going to be applied
 
         hvi.programming.add_end('EndOfSequence', 10)  # Add the end statement at the end of the sequence
@@ -120,7 +122,7 @@ def _helloworldmimo_hvi_configurator(Test_obj):
         trigger = engine.triggers.add(trigger_list[index], 'SequenceTrigger')
         trigger.configuration.direction = pyhvi.Direction.OUTPUT
         trigger.configuration.drive_mode = pyhvi.DriveMode.PUSH_PULL
-        trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+        trigger.configuration.polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
         trigger.configuration.delay = 0
         trigger.configuration.trigger_mode = pyhvi.TriggerMode.LEVEL
         trigger.configuration.pulse_length = 250
@@ -137,21 +139,21 @@ def _helloworldmimo_hvi_configurator(Test_obj):
 
         # Add instructions to specific sequence (using sequence.programming interface)
         instruction1 = sequence.programming.add_instruction('TriggerOn', 10,
-                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                                            Test_obj.hvi.instructions.trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction1.set_parameter(Test_obj.hvi.instructions.trigger_write.trigger,
                                    engine.triggers['SequenceTrigger'])  # Specify which trigger is going to be used
-        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction1.set_parameter(Test_obj.hvi.instructions.trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+        instruction1.set_parameter(Test_obj.hvi.instructions.trigger_write.value,
                                    pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applyed
 
         instruction2 = sequence.programming.add_instruction('TriggerOff', 500,
-                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                                            Test_obj.hvi.instructions.trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction2.set_parameter(Test_obj.hvi.instructions.trigger_write.trigger,
                                    engine.triggers['SequenceTrigger'])  # Specify which trigger is going to be used
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction2.set_parameter(Test_obj.hvi.instructions.trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+        instruction2.set_parameter(Test_obj.hvi.instructions.trigger_write.value,
                                    pyhvi.TriggerValue.OFF)  # Specify trigger value that is going to be applyed
 
     # Add global synchronized end to close KtHvi execution (close all sequences - using hvi-programming interface)
@@ -204,7 +206,7 @@ def _mimoresync_hvi_configurator(Test_obj):
     # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
     start_trigger = Test_obj.hvi.engines[Test_obj.master_module_index].triggers.add(wait_trigger, 'StartTrigger')
     start_trigger.configuration.direction = pyhvi.Direction.INPUT
-    start_trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+    start_trigger.configuration.polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
 
     # Add start event
     start_event = Test_obj.hvi.engines[Test_obj.master_module_index].events.add(wait_trigger, 'StartEvent')
@@ -217,7 +219,7 @@ def _mimoresync_hvi_configurator(Test_obj):
         trigger = engine.triggers.add(trigger_list[index], 'PulseOut')
         trigger.configuration.direction = pyhvi.Direction.OUTPUT
         trigger.configuration.drive_mode = pyhvi.DriveMode.PUSH_PULL
-        trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
+        trigger.configuration.polarity = pyhvi.TriggerPolarity.ACTIVE_LOW
         trigger.configuration.delay = 0
         trigger.configuration.trigger_mode = pyhvi.TriggerMode.LEVEL
         trigger.configuration.pulse_length = 250
@@ -229,7 +231,7 @@ def _mimoresync_hvi_configurator(Test_obj):
     engine_aou1_sequence = Test_obj.hvi.engines[Test_obj.master_module_index].main_sequence
     wait_event = engine_aou1_sequence.programming.add_wait_event('wait external_trigger', 10)
     wait_event.event = Test_obj.hvi.engines[Test_obj.master_module_index].events['StartEvent']
-    wait_event.set_mode(pyhvi.EventDetectionMode.HIGH,
+    wait_event.set_mode(pyhvi.EventDetectionMode.ACTIVE,
                         pyhvi.SyncMode.IMMEDIATE)  # Configure event detection and synchronization modes
 
     # Add global synchronized junction to HVI instance (to all sequences!!! - using hvi.programming interface)
@@ -246,21 +248,21 @@ def _mimoresync_hvi_configurator(Test_obj):
 
         # Add instructions to specific sequence (using sequence.programming interface)
         instruction1 = sequence.programming.add_instruction('TriggerOn', 10,
-                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                                            Test_obj.hvi.instructions.trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction1.set_parameter(Test_obj.hvi.instructions.trigger_write.trigger,
                                    engine.triggers['PulseOut'])  # Specify which trigger is going to be used
-        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction1.set_parameter(Test_obj.hvi.instructions.trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction1.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+        instruction1.set_parameter(Test_obj.hvi.instructions.trigger_write.value,
                                    pyhvi.TriggerValue.ON)  # Specify trigger value that is going to be applyed
 
         instruction2 = sequence.programming.add_instruction('TriggerOff', 100,
-                                                            Test_obj.hvi.instructions.instructions_trigger_write.id)  # Add trigger write instruction to the sequence
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.trigger,
+                                                            Test_obj.hvi.instructions.trigger_write.id)  # Add trigger write instruction to the sequence
+        instruction2.set_parameter(Test_obj.hvi.instructions.trigger_write.trigger,
                                    engine.triggers['PulseOut'])  # Specify which trigger is going to be used
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.sync_mode,
+        instruction2.set_parameter(Test_obj.hvi.instructions.trigger_write.sync_mode,
                                    pyhvi.SyncMode.IMMEDIATE)  # Specify synchronization mode
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_trigger_write.value,
+        instruction2.set_parameter(Test_obj.hvi.instructions.trigger_write.value,
                                    pyhvi.TriggerValue.OFF)  # Specify trigger value that is going to be applyed
 
     jump_name = 'JumpStatement'
@@ -343,12 +345,12 @@ def _fast_branching_hvi_configurator(Test_obj):
     # Add wait statement to first engine sequence (using sequence.programming interface)
     waitEvent = seq0.programming.add_wait_event("wait_external_trigger", 10)
     waitEvent.event = Test_obj.hvi.engines[Test_obj.master_module_index].events["extEvent"]
-    waitEvent.set_mode(pyhvi.EventDetectionMode.FALLING_EDGE, pyhvi.SyncMode.IMMEDIATE)
+    waitEvent.set_mode(pyhvi.EventDetectionMode.TRANSITION_TO_IDLE, pyhvi.SyncMode.IMMEDIATE)
 
     # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
     trigger = Test_obj.hvi.engines[Test_obj.master_module_index].triggers.add(waitTrigger, "extTrigger")
     trigger.configuration.direction = pyhvi.Direction.INPUT
-    trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_HIGH
+    trigger.configuration.polarity = pyhvi.TriggerPolarity.ACTIVE_HIGH
 
     # Add global synchronized junction to HVI instance using hvi.programming interface
     junctionName = "GlobalJunction"
@@ -379,30 +381,30 @@ def _fast_branching_hvi_configurator(Test_obj):
         seq = engine.main_sequence
 
         # Add AWG queue waveform instruction to the sequence
-        AwgQueueWfmInstrId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.ID
-        AwgQueueWfmId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.waveform.ID
+        AwgQueueWfmInstrId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.id
+        AwgQueueWfmId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.waveform.id
 
         instruction0 = seq.programming.add_instruction("awgQueueWaveform", 10, AwgQueueWfmInstrId)
         instruction0.set_parameter(AwgQueueWfmId, seq.registers["WfNum"])
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.channel.ID, nAWG)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.triggerMode.ID,
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.channel.id, nAWG)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.trigger_mode.id,
                                    keysightSD1.SD_TriggerModes.SWHVITRIG)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.startDelay.ID, startDelay)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.Cycles.ID, nCycles)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.parameter.prescaler.ID, prescaler)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.start_delay.id, startDelay)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.cycles.id, nCycles)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.prescaler.id, prescaler)
 
 
         awgTriggerList = [engine.actions["awg_trigger1"], engine.actions[
             "awg_trigger2"]]
         instruction2 = seq.programming.add_instruction("AWG trigger", 2e3,
-                                                       Test_obj.hvi.instructions.instructions_action_execute.id)
-        instruction2.set_parameter(Test_obj.hvi.instructions.instructions_action_execute.action, awgTriggerList)
+                                                       Test_obj.hvi.instructions.action_execute.id)
+        instruction2.set_parameter(Test_obj.hvi.instructions.action_execute.action, awgTriggerList)
 
     # Increment cycleCnt in module0
-    instructionRYinc = seq0.programming.add_instruction("add", 10, Test_obj.hvi.instructions.instructions_add.id)
-    instructionRYinc.set_parameter(Test_obj.hvi.instructions.instructions_add.left_operand, 1)
-    instructionRYinc.set_parameter(Test_obj.hvi.instructions.instructions_add.right_operand, cycleCnt)
-    instructionRYinc.set_parameter(Test_obj.hvi.instructions.instructions_add.result_register, cycleCnt)
+    instructionRYinc = seq0.programming.add_instruction("add", 10, Test_obj.hvi.instructions.add.id)
+    instructionRYinc.set_parameter(Test_obj.hvi.instructions.add.left_operand, 1)
+    instructionRYinc.set_parameter(Test_obj.hvi.instructions.add.right_operand, cycleCnt)
+    instructionRYinc.set_parameter(Test_obj.hvi.instructions.add.result_register, cycleCnt)
 
     # Global Jump
     jumpName = "jumpStatement"
