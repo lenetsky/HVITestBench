@@ -5,6 +5,14 @@ from hardware_configurator import *
 from test_initialization import *
 from hvi_configurator import *
 
+module_1 = [1, 3]
+module_2 = [1, 4]
+master_module_location = [1, 3]
+trigger_module_location = [1, 5]
+
+# Create array of module locations [chassis, slot]. Doesn't matter what type of SD1 instrument (dig/awg)
+module_array = [module_1, module_2]
+
 # In this example we will run a trigger example that will use HVI to synchronize two modules in a single chassis
 
 # This is the top level module which configures and runs sub-parts:
@@ -13,8 +21,7 @@ from hvi_configurator import *
 #   2. hardware_configurator.py (Hardware configuration)
 #   3. hvi_configurator (HVI configuration)
 
-# Create array of module locations [chassis, slot]. Doesn't matter what type of SD1 instrument (dig/awg)
-module_array = [[1, 8], [1, 9]]
+
 
 # Use the inventory function to get more info about modules (instrument type, name, etc.)
 module_dict = create_module_inventory(module_array)
@@ -185,7 +192,7 @@ if ctrl == 'q':
     sys.exit
 
 # create new test object
-mimo_resync_test = test_mimoresync(module_dict, {"chassis": 1, "slot": 9})
+mimo_resync_test = test_mimoresync(module_dict, {"chassis": master_module_location[0], "slot": master_module_location[1]})
 
 # run the hardware configurator
 configure_hardware(mimo_resync_test)
@@ -258,11 +265,10 @@ print("Press any key to begin the test, or 'q' to quit.")
 ctrl = input()
 if ctrl == 'q':
     print("Exiting...")
-    time.sleep(2)
     sys.exit
 
 # create new test object
-fast_branching_test = test_fastbranching(module_dict, {"chassis": 1, "slot": 9})
+fast_branching_test = test_fastbranching(module_dict, {"chassis": master_module_location[0], "slot": master_module_location[1]})
 
 # run the hardware configurator
 configure_hardware(fast_branching_test)
@@ -274,19 +280,13 @@ configure_hvi(fast_branching_test)
 fast_branching_test.run_hvi()
 
 # set up trigger module... replace the inputs with chassis, slot of your trigger module
-fast_branching_test.setup_ext_trig_module(1, 9)
+fast_branching_test.setup_ext_trig_module(trigger_module_location)
 
 # configure the test register
 fast_branching_test.seq_master.registers["cycleCnt"].write(0)
 
 # continuously loop through the test waveforms until user presses 'q'
 fast_branching_test.loop()
-
-# release hw
-fast_branching_test.release_hvi()
-
-# close modules
-fast_branching_test.close_modules()
 
 # release the HVI
 time.sleep(1)

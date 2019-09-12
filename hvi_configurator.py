@@ -32,7 +32,7 @@ def _helloworld_hvi_configurator(Test_obj):
             sys.exit()
 
         # Get engine from SD module's SD_AOUHvi object
-        sd_engine_aou = sd_hvi.engines.master_engine
+        sd_engine_aou = sd_hvi.engines.main_engine
 
         # Create KtHvi instance
         module_resource_name = 'KtHvi'
@@ -111,7 +111,7 @@ def _helloworldmimo_hvi_configurator(Test_obj):
     # Get engine IDs from module's SD_AOUHvi interface and add each engine to KtHvi instance
     engine_index = 0
     for module_hvi in module_hvi_list:
-        sd_engine = module_hvi.engines.master_engine
+        sd_engine = module_hvi.engines.main_engine
         Test_obj.hvi.engines.add(sd_engine, f'SdEngine{engine_index}')
         engine_index += 1
 
@@ -180,7 +180,7 @@ def _mimoresync_hvi_configurator(Test_obj):
     engine_list = []
     for module in module_hvi_list:
         trigger_list.append(module.triggers.front_panel_1)
-        engine_list.append(module.engines.master_engine)
+        engine_list.append(module.engines.main_engine)
 
     # Create KtHvi instance
     module_resource_name = 'KtHvi'
@@ -295,7 +295,7 @@ def _fast_branching_hvi_configurator(Test_obj):
     # Add engines to the engineList
     engineList = []
     for module in moduleHviList:
-        engineList.append(module.engines.master_engine)
+        engineList.append(module.engines.main_engine)
 
     # Create HVI instance
     moduleResourceName = "KtHvi"
@@ -312,8 +312,6 @@ def _fast_branching_hvi_configurator(Test_obj):
 
     if engineList.__len__() > 1:
         Test_obj.hvi.platform.chassis.add_auto_detect()
-
-    # TODO: To get this to work for multi-chassis, need to add in code
 
     # Get engine IDs
     engine_count = 0
@@ -345,7 +343,7 @@ def _fast_branching_hvi_configurator(Test_obj):
     # Add wait statement to first engine sequence (using sequence.programming interface)
     waitEvent = seq0.programming.add_wait_event("wait_external_trigger", 10)
     waitEvent.event = Test_obj.hvi.engines[Test_obj.master_module_index].events["extEvent"]
-    waitEvent.set_mode(pyhvi.EventDetectionMode.TRANSITION_TO_IDLE, pyhvi.SyncMode.IMMEDIATE)
+    waitEvent.set_mode(pyhvi.EventDetectionMode.TRANSITION_TO_ACTIVE, pyhvi.SyncMode.IMMEDIATE)
 
     # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
     trigger = Test_obj.hvi.engines[Test_obj.master_module_index].triggers.add(waitTrigger, "extTrigger")
@@ -361,17 +359,21 @@ def _fast_branching_hvi_configurator(Test_obj):
     startDelay = 0
     nCycles = 1
     prescaler = 0
-    nAWG = 0
+    nAWG = 1
 
     # Add actions to HVI engines
     for index in range(0, Test_obj.hvi.engines.count):
         moduleActions = Test_obj.module_instances[index][0].hvi.actions
         engine = Test_obj.hvi.engines[index]
         engine.actions.add(moduleActions.awg1_start, "awg_start1")
-        engine.actions.add(moduleActions.awg2_start, "awg_start2")
+        # engine.actions.add(moduleActions.awg2_start, "awg_start2")
+        # engine.actions.add(moduleActions.awg3_start, "awg_start3")
+        # engine.actions.add(moduleActions.awg4_start, "awg_start4")
 
         engine.actions.add(moduleActions.awg1_trigger, "awg_trigger1")
-        engine.actions.add(moduleActions.awg2_trigger, "awg_trigger2")
+        # engine.actions.add(moduleActions.awg2_trigger, "awg_trigger2")
+        # engine.actions.add(moduleActions.awg3_trigger, "awg_trigger3")
+        # engine.actions.add(moduleActions.awg4_trigger, "awg_trigger4")
 
     # Add AWG queue waveform and AWG trigger to each module's sequence
     for index in range(0, Test_obj.hvi.engines.count):
@@ -381,21 +383,20 @@ def _fast_branching_hvi_configurator(Test_obj):
         seq = engine.main_sequence
 
         # Add AWG queue waveform instruction to the sequence
-        AwgQueueWfmInstrId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.id
-        AwgQueueWfmId = Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.waveform.id
+        AwgQueueWfmInstrId = Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.id
+        AwgQueueWfmId = Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.waveformNumber.id
 
         instruction0 = seq.programming.add_instruction("awgQueueWaveform", 10, AwgQueueWfmInstrId)
         instruction0.set_parameter(AwgQueueWfmId, seq.registers["WfNum"])
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.channel.id, nAWG)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.trigger_mode.id,
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.channel.id, nAWG)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.triggerMode.id,
                                    keysightSD1.SD_TriggerModes.SWHVITRIG)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.start_delay.id, startDelay)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.cycles.id, nCycles)
-        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queuewaveform.prescaler.id, prescaler)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.startDelay.id, startDelay)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.cycles.id, nCycles)
+        instruction0.set_parameter(Test_obj.module_instances[index][0].hvi.instructions.queueWaveform.prescaler.id, prescaler)
 
 
-        awgTriggerList = [engine.actions["awg_trigger1"], engine.actions[
-            "awg_trigger2"]]
+        awgTriggerList = [engine.actions["awg_trigger1"]]  #, engine.actions["awg_trigger2"], engine.actions["awg_trigger3"], engine.actions["awg_trigger4"]]
         instruction2 = seq.programming.add_instruction("AWG trigger", 2e3,
                                                        Test_obj.hvi.instructions.action_execute.id)
         instruction2.set_parameter(Test_obj.hvi.instructions.action_execute.action, awgTriggerList)

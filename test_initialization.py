@@ -200,14 +200,14 @@ class test_fastbranching(Test):
     def release_hvi(self):
         self.hvi.release_hw()
 
-    def setup_ext_trig_module(self, chassis, slot):
+    def setup_ext_trig_module(self, trig_mod_location):
 
         partNumber = ""
 
         # Connect to trigger module
-        status = self.extTrigModule.openWithSlot(partNumber, chassis, slot)
+        status = self.extTrigModule.openWithSlot(partNumber, trig_mod_location[0], trig_mod_location[1])
         if (status < 0):
-            print("Invalid module name, chassis, or slot number. Press enter to quit")
+            print("Error opening trigger module. Press enter to exit")
             input()
             sys.exit()
 
