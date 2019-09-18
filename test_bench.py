@@ -5,10 +5,10 @@ from hardware_configurator import *
 from test_initialization import *
 from hvi_configurator import *
 
-module_1 = [1, 3]
-module_2 = [1, 4]
-master_module_location = [1, 3]
-trigger_module_location = [1, 5]
+module_1 = [1, 7]
+module_2 = [1, 10]
+master_module_location = [1, 7]
+trigger_module_location = [1, 8]
 
 # Create array of module locations [chassis, slot]. Doesn't matter what type of SD1 instrument (dig/awg)
 module_array = [module_1, module_2]

@@ -72,7 +72,7 @@ def main():
         sys.exit()
 
     # Create module definitions
-    moduleDescriptors = [ModuleDescriptor(1, 4, options), ModuleDescriptor(1, 5, options)]
+    moduleDescriptors = [ModuleDescriptor(1, 7, options), ModuleDescriptor(1, 15, options)]
 
     moduleList = []
     minChassis = 0
@@ -125,7 +125,9 @@ def main():
     hvi = pyhvi.KtHvi(moduleResourceName)
 
     # Assign triggers to HVI object to be used for HVI-managed synch, data sharing, etc.
-    triggerResources = [pyhvi.TriggerResourceId.PXI_TRIGGER0, pyhvi.TriggerResourceId.PXI_TRIGGER1,
+    triggerResources = [
+
+                        pyhvi.TriggerResourceId.PXI_TRIGGER5, pyhvi.TriggerResourceId.PXI_TRIGGER6,
                         pyhvi.TriggerResourceId.PXI_TRIGGER7]
     hvi.platform.sync_resources = triggerResources
 
@@ -179,12 +181,12 @@ def main():
     # Add wait statement to first engine sequence (using sequence.programming interface)
     waitEvent = seq0.programming.add_wait_event("wait_external_trigger", 10)
     waitEvent.event = hvi.engines[0].events["extEvent"]
-    waitEvent.set_mode(pyhvi.EventDetectionMode.FALLING_EDGE, pyhvi.SyncMode.IMMEDIATE)
+    waitEvent.set_mode(pyhvi.EventDetectionMode.TRANSITION_TO_IDLE, pyhvi.SyncMode.IMMEDIATE)
 
     # Add wait trigger just to be sure Pxi from the cards is not interfering Pxi2 triggering from a third card (the trigger the waitEvent is waiting for).
     trigger = hvi.engines[0].triggers.add(waitTrigger, "extTrigger")
     trigger.configuration.direction = pyhvi.Direction.INPUT
-    trigger.configuration.trigger_polarity = pyhvi.TriggerPolarity.ACTIVE_HIGH
+    trigger.configuration.polarity = pyhvi.TriggerPolarity.ACTIVE_HIGH
 
     # Add global synchronized junction to HVI instance using hvi.programming interface
     junctionName = "GlobalJunction"
@@ -215,30 +217,30 @@ def main():
         seq = engine.main_sequence
 
         # Add AWG queue waveform instruction to the sequence
-        AwgQueueWfmInstrId = moduleList[index].hvi.instructions.queuewaveform.ID
-        AwgQueueWfmId = moduleList[index].hvi.instructions.queuewaveform.parameter.waveform.ID
+        AwgQueueWfmInstrId = moduleList[index].hvi.instructions.queuewaveform.id
+        AwgQueueWfmId = moduleList[index].hvi.instructions.queuewaveform.waveform.id
 
         instruction0 = seq.programming.add_instruction("awgQueueWaveform", 10, AwgQueueWfmInstrId)
         instruction0.set_parameter(AwgQueueWfmId, seq.registers["WfNum"])
-        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.parameter.channel.ID, nAWG)
-        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.parameter.triggerMode.ID,
+        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.channel.id, nAWG)
+        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.trigger_mode.id,
                                    keysightSD1.SD_TriggerModes.SWHVITRIG)
-        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.parameter.startDelay.ID, startDelay)
-        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.parameter.Cycles.ID, nCycles)
-        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.parameter.prescaler.ID, prescaler)
+        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.start_delay.id, startDelay)
+        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.cycles.id, nCycles)
+        instruction0.set_parameter(moduleList[index].hvi.instructions.queuewaveform.prescaler.id, prescaler)
 
 
         awgTriggerList = [engine.actions["awg_trigger1"], engine.actions[
             "awg_trigger2"]]
         instruction2 = seq.programming.add_instruction("AWG trigger", 2e3,
-                                                       hvi.instructions.instructions_action_execute.id)
-        instruction2.set_parameter(hvi.instructions.instructions_action_execute.action, awgTriggerList)
+                                                       hvi.instructions.action_execute.id)
+        instruction2.set_parameter(hvi.instructions.action_execute.action, awgTriggerList)
 
     # Increment cycleCnt in module0
-    instructionRYinc = seq0.programming.add_instruction("add", 10, hvi.instructions.instructions_add.id)
-    instructionRYinc.set_parameter(hvi.instructions.instructions_add.left_operand, 1)
-    instructionRYinc.set_parameter(hvi.instructions.instructions_add.right_operand, cycleCnt)
-    instructionRYinc.set_parameter(hvi.instructions.instructions_add.result_register, cycleCnt)
+    instructionRYinc = seq0.programming.add_instruction("add", 10, hvi.instructions.add.id)
+    instructionRYinc.set_parameter(hvi.instructions.add.left_operand, 1)
+    instructionRYinc.set_parameter(hvi.instructions.add.right_operand, cycleCnt)
+    instructionRYinc.set_parameter(hvi.instructions.add.result_register, cycleCnt)
 
     # Global Jump
     jumpName = "jumpStatement"
@@ -269,7 +271,7 @@ def main():
 
     status = 1
     chassisNumber = 1
-    slotNumber = 3
+    slotNumber = 8
     extTrigModule = keysightSD1.SD_AOU()
 
     partNumber = ""
